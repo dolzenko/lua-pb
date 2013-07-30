@@ -272,14 +272,16 @@ __index = function(tab, ftype)
 		-- complex type (Enums)
 		funpack = ftype
 	end
-	rawset(tab, ftype, function(data, off, len, arr)
+        local ret = function(data, off, len, arr)
 		local i=#arr
 		while (off <= len) do
 			i = i + 1
 			arr[i], off = funpack(data, off, len, nil)
 		end
 		return arr, off
-	end)
+	end
+	rawset(tab, ftype, ret)
+        return ret
 end,
 })
 
@@ -346,6 +348,7 @@ local function unpack_fields(data, off, len, msg, tags, is_group)
 			return msg, off
 		end
 		field = tags[tag]
+
 		if field then
 			if field.wire_type ~= wire_type then
 				error(sformat("Malformed Message, wire_type of field doesn't match (%d ~= %d)!",
@@ -477,14 +480,15 @@ function register_fields(mt)
 				wire_type = wire_types.group_start
 			elseif user_type_mt.is_enum then
 				wire_type = wire_types.enum
-				if field.is_unpacked then
+				if field.is_packed then
 					field.unpack = packed[field.unpack]
 				end
 			else
 				wire_type = wire_types.message
 			end
-		elseif field.is_unpacked then
+		elseif field.is_packed then
 			field.unpack = packed[ftype]
+                        wire_type    = wire_types.packed
 		else
 			field.unpack = basic[ftype]
 		end
@@ -504,4 +508,3 @@ function register_msg(mt)
 		return message(data, off, #data, msg, tags)
 	end
 end
-
